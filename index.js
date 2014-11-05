@@ -80,8 +80,7 @@ function getRequestParameter (req) {
  */
 function proxyRequestToAWS (req, param) {
     // @TODO: サービス名の大文字小文字をどうやって解消するか。
-    // @TODO: リクエストパラメータをそのまま投げる
-    var serviceInstance = new AWS[req.className.toUpperCase()];
+    var serviceInstance = new AWS[req.className];
     return serviceInstance[req.method](param || {}).promise();
 }
 

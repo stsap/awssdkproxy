@@ -6,6 +6,8 @@ awssdkproxy
 
 起動
 -------
+credentials.json にAccessKeyなどを入れ、下記コマンドで起動します。
+
     # npm install
     # node index.js
 
@@ -21,5 +23,7 @@ http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/frames.html
 
 使用例(jQuery)
 ------
+    $.post("http://localhost:8080/Config/update", {region: "us-east-1"})
+        .then(function (result) { console.log(result); });
     $.get("http://localhost:8080/EC2/describeRegions")
         .then(function (result) { console.log(result); });

@@ -38,16 +38,25 @@ function onRequest (req, res) {
     if (isValidRequest(req)) {
         getRequestParameter(req)
             .then(function (reqParam) {
-                return proxyRequestToAWS(parseRequestUrl(req), reqParam);
+                var requests = parseRequestUrl(req);
+                if (requests.className === "Config") {
+                    var q = require("q").defer();
+                    AWS.config[requests.method](reqParam);
+                    q.resolve({success: true, "class": "Config", method: requests.method});
+                    return q.promise;
+                } else {
+                    return proxyRequestToAWS(parseRequestUrl(req), reqParam);
+                }
             })
-            .then(function (awsreq) {
+            .then(
+                function (awsreq) {
                     res.writeHead(200, {
                         "Content-Type": "application/json",
                         "Access-Control-Allow-Origin": "*"
                     });
                     res.end(JSON.stringify(awsreq));
                 },
-                function (awsreq) { if (debug) console.log(awsreq); }
+                function (result) { if (debug) console.log(awsreq); }
             )
             .done();
     } else {

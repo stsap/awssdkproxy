@@ -5,13 +5,14 @@ var qs = require("querystring");
 var url = require("url");
 var AWS = require("aws-sdk");
 var _ = require("underscore");
+var Q = require("q");
 
 var debug = true;
 
 var config = require("./config.json");
 
 AWS.Request.prototype.promise = function () {
-    var deferred = require("q").defer();
+    var deferred = Q.defer();
     this.on("complete", function (res) {
         if (res.error) deferred.reject(res.error);
         else deferred.resolve(res.data);
@@ -40,7 +41,7 @@ function onRequest (req, res) {
             .then(function (reqParam) {
                 var requests = parseRequestUrl(req);
                 if (requests.className === "Config") {
-                    var q = require("q").defer();
+                    var q = Q.defer();
                     AWS.config[requests.method](reqParam);
                     q.resolve({success: true, "class": "Config", method: requests.method});
                     return q.promise;
@@ -56,7 +57,7 @@ function onRequest (req, res) {
                     });
                     res.end(JSON.stringify(awsreq));
                 },
-                function (result) { if (debug) console.log(awsreq); }
+                function (result) { if (debug) console.log(result); }
             )
             .done();
     } else {
@@ -69,11 +70,13 @@ function onRequest (req, res) {
  *
  */
 function getRequestParameter (req) {
-    var q = require("q").defer();
+    var q = Q.defer();
     if (req.method === "POST") {
         var data = "";
         req.on("data", function (chunk) { data += chunk; });
-        req.on("end", function () { q.resolve(require("querystring").parse(data)); });
+        req.on("end", function () {
+            q.resolve((/\=/.test(data)) ? require("querystring").parse(data): JSON.parse(data));
+        });
     } else if (req.method === "GET") {
         q.resolve(url.parse(req.url, true).query);
     } else {
@@ -90,7 +93,18 @@ function getRequestParameter (req) {
 function proxyRequestToAWS (req, param) {
     // @TODO: サービス名の大文字小文字をどうやって解消するか。
     var serviceInstance = new AWS[req.className];
-    return serviceInstance[req.method](param || {}).promise();
+    if (param.options) {
+        var d = serviceInstance[req.method](param.options[0], param.params);
+        if (d instanceof Object) {
+            return d.promise();
+        } else {
+            var q = Q.defer();
+            q.resolve(d);
+            return q.promise;
+        }
+    } else {
+        return serviceInstance[req.method](param || {}).promise();
+    }
 }
 
 /**
